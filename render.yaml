@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: science-arena-review-personal
+    runtime: static
+    buildCommand: test -f static/data/manifest.json && echo "Using prebuilt Science Arena static data"
+    staticPublishPath: .
+    headers:
+      - path: /*
+        name: X-Robots-Tag
+        value: noindex, nofollow

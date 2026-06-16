@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Science Arena</title>
+    <link rel="stylesheet" href="/static/css/app.css" />
+  </head>
+  <body>
+    <div id="app" class="app-shell">
+      <header class="site-header">
+        <a class="brand-link" href="/" aria-label="Science Arena home">
+          <span class="brand-mark" aria-hidden="true">
+            <img src="/static/assets/science-icon.png" alt="" />
+          </span>
+          <span>Science Arena</span>
+        </a>
+        <nav class="header-nav" aria-label="Dashboard metadata">
+          <span>Anonymous</span>
+        </nav>
+      </header>
+
+      <main class="arena-page">
+        <section class="arena-hero" aria-labelledby="pageTitle">
+          <div class="hero-mark" aria-hidden="true">
+            <img src="/static/assets/science-icon.png" alt="" />
+          </div>
+          <h1 id="pageTitle">Science Arena</h1>
+          <p>Competition-level scores with source-linked problem details.</p>
+        </section>
+
+        <section class="notice-strip" aria-label="Protocol note">
+          <strong>Scoring note.</strong>
+          <span id="sheetDescription"></span>
+        </section>
+
+        <section class="competition-controls" aria-label="Competition selector">
+          <div class="nav-stack">
+            <div class="category-tabs" id="sheetTabs" aria-label="Competition groups"></div>
+            <div class="competition-tabs" id="categoryTabs" aria-label="Competitions"></div>
+          </div>
+        </section>
+
+        <section class="benchmark-workbench" id="workbench">
+          <section class="leaderboard-card" aria-labelledby="benchmarkTitle">
+            <div class="leaderboard-toolbar">
+              <div>
+                <h2 id="benchmarkTitle">Leaderboard</h2>
+                <p id="benchmarkMeta"></p>
+              </div>
+              <label class="search-box">
+                <span>Entry</span>
+                <input id="modelSearch" type="search" placeholder="Filter entries" autocomplete="off" />
+              </label>
+            </div>
+            <div class="legend compact" id="cellLegend" aria-label="Cell color legend">
+              <span><i class="swatch high"></i>Correct</span>
+              <span><i class="swatch mid"></i>Partial</span>
+              <span><i class="swatch low"></i>Wrong</span>
+              <span><i class="swatch invalid"></i>Missing</span>
+              <span class="legend-leak"><span class="leak-icon" aria-hidden="true">!</span> possible timing/data leakage</span>
+            </div>
+            <div class="arena-table-wrap" id="scoreTable"></div>
+            <p class="table-hint" id="tableHint">Problem-level records with model answer, evaluation feedback, official answer, rubric, and figures.</p>
+          </section>
+
+          <aside class="detail-panel" id="detailPanel" aria-live="polite">
+            <div class="empty-detail">
+              <h3>Problem Details</h3>
+              <p>No problem selected.</p>
+            </div>
+          </aside>
+        </section>
+
+        <section class="fallback-shell" id="staticFallback">
+          <iframe
+            class="fallback-frame"
+            src="/static/data/fallback.html"
+            title="Science Arena static score fallback"
+            loading="lazy"
+          ></iframe>
+        </section>
+      </main>
+    </div>
+    <script src="/static/js/app.js" defer></script>
+  </body>
+</html>
