@@ -22,7 +22,7 @@ NOTE = (
     "T = reviewed answer-blind question text, no images. Judge: Gemini 3.5 Flash. "
     "95% intervals use 10,000 whole-question bootstrap samples; they do not measure "
     "generation or judge variance. Training exposure is indeterminate. "
-    "Full question images, visible answers and judge records are available in the release assets. "
+    "Available question-level records are linked from the competition view. "
     "Select a competition, then click a colored question cell to inspect its answer and grade. "
     "IPhO solution PDFs have unverified official/final status; some rubrics are derived."
 )
@@ -167,6 +167,11 @@ def main():
                 require(len(detail["turn_scores"]) == COUNTS[cell["benchmark_id"]], "Detail score coverage mismatch")
                 cell.update({k: detail[k] for k in ("detail_path", "shared_path", "turn_scores")})
         manifest["sheets"][0]["show_problem_cells"] = True
+        available_names = "/".join(manifest["benchmarks"][c]["name"].replace(" 2026", "") for c in COUNTS if c in available_contests)
+        missing_names = "/".join(manifest["benchmarks"][c]["name"].replace(" 2026", "") for c in COUNTS if c in unavailable_contests)
+        manifest["sheets"][0]["description"] += f" Question details: {available_names} available."
+        if missing_names:
+            manifest["sheets"][0]["description"] += f" Final {missing_names} records are missing from the release."
     write(DATA / "manifest.json", manifest)
     fallback(manifest)
     print("Synced 56 sealed 2026 competition cells and 14 macro/CI rows; zero raw downloads or API calls.")

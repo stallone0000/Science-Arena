@@ -28,7 +28,7 @@
     {
       "sheet_id": "sealed_2026",
       "name": "2026 Competitions",
-      "description": "August 2026 sealed release: 14 models, 4 competitions, 153 turns, 56 complete cells. Macro = equal-weight mean of the four normalized scores. V = original question images; T = reviewed answer-blind question text, no images. Judge: Gemini 3.5 Flash. 95% intervals use 10,000 whole-question bootstrap samples; they do not measure generation or judge variance. Training exposure is indeterminate. Full question images, visible answers and judge records are available in the release assets. Select a competition, then click a colored question cell to inspect its answer and grade. IPhO solution PDFs have unverified official/final status; some rubrics are derived.",
+      "description": "August 2026 sealed release: 14 models, 4 competitions, 153 turns, 56 complete cells. Macro = equal-weight mean of the four normalized scores. V = original question images; T = reviewed answer-blind question text, no images. Judge: Gemini 3.5 Flash. 95% intervals use 10,000 whole-question bootstrap samples; they do not measure generation or judge variance. Training exposure is indeterminate. Available question-level records are linked from the competition view. Select a competition, then click a colored question cell to inspect its answer and grade. IPhO solution PDFs have unverified official/final status; some rubrics are derived. Question details: IPhO/IChO available. Final NBPhO/USAPhO records are missing from the release.",
       "benchmark_ids": [
         "overall_sealed_2026",
         "ipho2026",
