@@ -535,7 +535,10 @@ function renderOverallTable() {
             const label = cell?.status === "invalid" ? "Invalid" : "N/A";
             return `<td>${invalidMetric(label, `${state.manifest.benchmarks[id]?.name || id}: ${label}`)}</td>`;
           }
-          return `<td>${metricCell("accuracy", Number(cell.pct || 0), scoreLabel(cell), pctLabel(cell), `${state.manifest.benchmarks[id]?.name || id}: ${scoreLabel(cell)}`)}</td>`;
+          const metric = metricCell("accuracy", Number(cell.pct || 0), scoreLabel(cell), pctLabel(cell), `${state.manifest.benchmarks[id]?.name || id}: ${scoreLabel(cell)}`);
+          return activeSheet()?.sheet_id === "sealed_2026"
+            ? `<td><button class="score-drilldown" data-benchmark="${escapeHtml(id)}" data-model="${escapeHtml(model.model_id)}" aria-label="View ${escapeHtml(model.display)} on ${escapeHtml(state.manifest.benchmarks[id]?.name || id)}">${metric}</button></td>`
+            : `<td>${metric}</td>`;
         })
         .join("");
       return `
@@ -554,6 +557,16 @@ function renderOverallTable() {
     })
     .join("");
   $("scoreTable").innerHTML = `<table class="arena-table overall-table" style="width:${tableWidth}px;${activeSheet()?.sheet_id === "sealed_2026" ? "min-width:100%" : ""}">${colgroup}${head}<tbody>${body}</tbody></table>`;
+  $("scoreTable").querySelectorAll(".score-drilldown").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.selectedBenchmark = button.dataset.benchmark;
+      state.selectedModel = button.dataset.model;
+      state.selectedTurn = currentBenchmark()?.turns?.[0]?.turn_id || null;
+      render();
+      loadBenchmarkDetails();
+      focusDetailPanel();
+    });
+  });
 }
 
 function renderScoreTable() {

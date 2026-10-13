@@ -39,22 +39,46 @@ labelled them 2026. They are separate from the new sealed 2026 cells. The
 archived international scores and human references remain in their own tab.
 No absence of training exposure is inferred from model release timing.
 
-The 2026 view displays the released aggregate scores. Question images, visible
-model answers and rubric-judge ledgers stay in the
-[GitHub Release](https://github.com/stallone0000/Science-Arena-code/releases/tag/cr-final-2026-08-31),
-linked from the dashboard. They are not bundled into the static site or fetched
-automatically by its builder. The 95% intervals describe whole-question
-sampling sensitivity, not generation or judge variance.
+The 2026 view displays the released aggregate scores. Available sealed runs
+also have clickable question cells with visible model answers, criterion
+scores/evidence, the frozen native/text question, reference answer, rubric and
+original question/solution page PNGs. Each model's detail JSON is fetched only
+when a cell is selected; shared question material and images are stored once.
+Failed requests expose a Retry button.
+
+`Build 2026 problem details` is a manually dispatched GitHub Actions workflow.
+It downloads and checksums the original
+[Release assets](https://github.com/stallone0000/Science-Arena-code/releases/tag/cr-final-2026-08-31)
+on a temporary GitHub runner, resolves archived record reuse links, verifies
+frozen item/image hashes, and reconstructs each displayed competition total
+from item scores with the original sequence weights. It publishes only the
+visible-answer/feedback fields and needed PNGs to `static/data/2026/`.
+Provider wire payloads, hidden reasoning and personal filesystem paths are
+not exported. No model inference is performed.
+
+The ordinary `sync_2026.py` rebuild stays offline and uses only the small
+`static/data/2026/index.json`. It never downloads the large archives or the
+per-model answer files. The 95% intervals describe whole-question sampling
+sensitivity, not generation or judge variance.
+
+Current release coverage: **IPhO and IChO 2026** support all 14 models' question
+details. The release does not contain the final NBPhO v8 or USAPhO v5 run
+directories bound by the published analysis manifest. Those two competitions
+retain the published totals and explicitly state that final per-question
+records are unavailable; earlier grades are not substituted. See
+[the coverage audit](docs/2026_RELEASE_COVERAGE.md).
 
 For a compact local checkout, keep deployed archived details/images on GitHub:
 
 ```bash
 git clone --filter=blob:none --depth 1 --sparse https://github.com/stallone0000/Science-Arena.git
 cd Science-Arena
-git sparse-checkout set --no-cone '/*' '!/static/' '/static/css/' '/static/js/' '/static/assets/' '/static/data/manifest.json' '/static/data/fallback.html'
+git sparse-checkout set --no-cone '/*' '!/static/' '/static/css/' '/static/js/' '/static/assets/' '/static/data/manifest.json' '/static/data/fallback.html' '/static/data/2026/index.json' '/static/data/2026/build_report.json'
 ```
 
-This retains code, small score data and UI assets. The two archived tabs need
-`static/data/details/` and `static/data/assets/` for local problem browsing;
-restore them with `git sparse-checkout disable` when required. Render uses the
-full repository, so this local setting does not affect the deployed site.
+This retains code, small score/detail indexes and UI assets. For local problem
+browsing, answer JSONs and PNGs can be served from the deployed site; a full
+offline view needs the omitted `static/data/2026/` files or the legacy
+`static/data/details/` and `static/data/assets/`. Restore them with
+`git sparse-checkout disable` when required. Render uses the full repository,
+so this local setting does not affect the deployed site.

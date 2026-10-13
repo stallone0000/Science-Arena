@@ -245,6 +245,22 @@ button:disabled {
   color: var(--indigo);
 }
 
+.score-drilldown {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.score-drilldown:hover,
+.score-drilldown:focus-visible {
+  outline: 2px solid var(--indigo);
+  border-radius: 5px;
+}
+
 .nav-stack {
   display: flex;
   flex-direction: column;
