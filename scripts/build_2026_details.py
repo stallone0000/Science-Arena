@@ -12,6 +12,7 @@ import tarfile
 import tempfile
 import time
 import urllib.request
+import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCES = ROOT / "scripts/sources/2026"
@@ -50,6 +51,35 @@ def download(row, directory, release):
 
 def archive_members(path):
     import zstandard
+    if path.suffix == ".zip":
+        class ZipAdapter:
+            def __init__(self, archive):
+                self.archive = archive
+
+            def extractfile(self, member):
+                return self.archive.open(member.info)
+
+        class ZipMember:
+            def __init__(self, info):
+                self.info = info
+                self.size = info.file_size
+                self.linkname = ""
+
+            def isfile(self):
+                return not self.info.is_dir()
+
+            def issym(self):
+                return False
+
+            def islnk(self):
+                return False
+
+        with zipfile.ZipFile(path) as archive:
+            for member in archive.infolist():
+                name = str(PurePosixPath(member.filename))
+                require(not name.startswith("/") and ".." not in PurePosixPath(name).parts, "Unsafe ZIP path")
+                yield ZipAdapter(archive), ZipMember(member), name
+        return
     with path.open("rb") as source, zstandard.ZstdDecompressor().stream_reader(source) as stream:
         with tarfile.open(fileobj=stream, mode="r|") as archive:
             for member in archive:
@@ -61,10 +91,19 @@ def archive_members(path):
 def inspect(paths, analysis):
     results = {}
     for path in paths:
+        if path.name.endswith(".json.zst"):
+            import zstandard
+            with path.open("rb") as handle, zstandard.ZstdDecompressor().stream_reader(handle) as stream:
+                obj = json.load(stream)
+            results[path.name] = {"json_keys": list(obj) if isinstance(obj, dict) else [], "matched_sealed_records": {}, "samples": {}, "roots": {}}
+            continue
         roots = Counter()
+        links = {}
         matches = {s["competition_key"]: {"solver": 0, "judge": 0, "items": False} for s in analysis["sources"]}
         samples = {}
         for archive, member, name in archive_members(path):
+            if member.issym() or member.islnk():
+                links[name] = member.linkname
             if not member.isfile():
                 continue
             roots["/".join(name.split("/")[:4])] += 1
@@ -81,7 +120,7 @@ def inspect(paths, analysis):
                         if key not in samples:
                             obj = json.load(archive.extractfile(member))
                             samples[key] = {"path": name, "keys": list(obj), "fields": {k: obj[k] for k in ("terminal", "status", "route", "solver_route", "item_id", "score", "max_score") if k in obj}, "parsed_keys": list(obj.get("parsed") or {})}
-        results[path.name] = {"roots": dict(roots), "matched_sealed_records": matches, "samples": samples}
+        results[path.name] = {"roots": dict(roots), "links": links, "matched_sealed_records": matches, "samples": samples}
     print(json.dumps(results, ensure_ascii=False, indent=2), flush=True)
 
 
@@ -91,7 +130,7 @@ def main():
     args = parser.parse_args()
     release = read(SOURCES / "release_assets.json")
     analysis = read(SOURCES / "analysis_manifest.json")
-    rows = [row for row in release["assets"] if row["name"] in SELECTED]
+    rows = [row for row in release["assets"] if args.inspect or row["name"] in SELECTED]
     with tempfile.TemporaryDirectory(prefix="science-arena-release-") as temporary:
         with ThreadPoolExecutor(max_workers=3) as pool:
             paths = list(pool.map(lambda row: download(row, Path(temporary), release), rows))
