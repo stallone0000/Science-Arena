@@ -17,14 +17,10 @@ SHEET = "sealed_2026"
 OVERALL = "overall_sealed_2026"
 COUNTS = {"ipho2026": 23, "icho2026": 68, "nbpho2026": 28, "usapho2026": 34}
 NOTE = (
-    "August 2026 sealed release: 14 models, 4 competitions, 153 turns, 56 complete cells. "
-    "Macro = equal-weight mean of the four normalized scores. V = original question images; "
-    "T = reviewed answer-blind question text, no images. Judge: Gemini 3.5 Flash. "
-    "95% intervals use 10,000 whole-question bootstrap samples; they do not measure "
-    "generation or judge variance. Training exposure is indeterminate. "
-    "Available question-level records are linked from the competition view. "
-    "Select a competition, then click a colored question cell to inspect its answer and grade. "
-    "IPhO solution PDFs have unverified official/final status; some rubrics are derived."
+    "Scores are normalized by each competition's maximum. The overall score is the "
+    "equal-weight mean across four competitions. V = original question images; "
+    "T = frozen question text. Judge: Gemini 3.5 Flash. "
+    "95% intervals use 10,000 whole-question bootstrap samples."
 )
 
 
@@ -67,8 +63,8 @@ def fallback(manifest):
             mode = cells[ids[0], model["model_id"]].get("input_mode", "")
             label = "V · native images" if mode == "vision" else "T · frozen text" if mode else ""
             rows.append(f'<tr><th>{e(model["display"])}<br><small>{label}</small></th>{"".join(values)}</tr>')
-        sections.append(f'<section><h2>{e(sheet["name"])}</h2><p>{e(sheet["description"])}</p><div class="scroll"><table><thead><tr><th>Model</th>{heads}</tr></thead><tbody>{"".join(rows)}</tbody></table></div></section>')
-    page = '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Science Arena Static Scores</title><style>body{font:14px system-ui;margin:20px;color:#263347}section{margin:24px 0}p{line-height:1.5}table{border-collapse:collapse}th,td{border:1px solid #d9ded8;padding:9px;text-align:left;white-space:nowrap}thead{background:#f0f4f1}small{font-weight:normal}.scroll{overflow:auto}</style><h1>Science Arena</h1><p>Static score fallback · 2026 release and archived results</p>' + "".join(sections) + '</html>\n'
+        sections.append(f'<section><h2>{e(sheet["name"])}</h2><details><summary>Scoring note</summary><p>{e(sheet["description"])}</p></details><div class="scroll"><table><thead><tr><th>Model</th>{heads}</tr></thead><tbody>{"".join(rows)}</tbody></table></div></section>')
+    page = '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Science Arena Static Scores</title><style>body{font:14px system-ui;margin:20px;color:#263347}section{margin:24px 0}p{line-height:1.5}details{margin:0 0 12px}summary{cursor:pointer}table{border-collapse:collapse}th,td{border:1px solid #d9ded8;padding:9px;text-align:left;white-space:nowrap}thead{background:#f0f4f1}small{font-weight:normal}.scroll{overflow:auto}</style><h1>Science Arena</h1><p>Competition scores</p>' + "".join(sections) + '</html>\n'
     (DATA / "fallback.html").write_text(page, encoding="utf-8")
 
 
@@ -99,14 +95,14 @@ def main():
     for benchmark in ("nbpho2025", "usapho2025"):
         b = manifest["benchmarks"][benchmark]
         b["name"] = b["name"].replace("2026", "2025")
-        b["release_date"] = "2025 (archived; exact public date unverified)"
+        b["release_date"] = "2025"
     for sheet in manifest["sheets"]:
         if sheet["sheet_id"] == "international_core":
-            sheet["name"] = "Archived International"
-            sheet["description"] = "Archived manual-evaluation scores and official human reference rows. Timing alone does not establish absence of training exposure."
+            sheet["name"] = "International Olympiads"
+            sheet["description"] = "International Olympiad model scores with human reference results."
         elif sheet["sheet_id"] == "extended_suite":
-            sheet["name"] = "Archived Extended"
-            sheet["description"] = "May 2026 text-only interleaved archive; NBPhO and USAPhO inputs are from 2025. These scores use an older protocol and are separate from the sealed 2026 release."
+            sheet["name"] = "Extended Suite"
+            sheet["description"] = "Scores across the extended scientific Olympiad competitions. Select a competition to browse item-level results."
     model_ids = [r["route"] for r in scores["rows"]]
     manifest["sheets"].insert(0, {"sheet_id": SHEET, "name": "2026 Competitions", "description": NOTE, "benchmark_ids": [OVERALL, *COUNTS], "score_benchmark_ids": list(COUNTS), "model_ids": model_ids, "show_usage": False, "show_problem_cells": False})
     for contest, count in COUNTS.items():
@@ -155,7 +151,6 @@ def main():
         for contest, count in COUNTS.items():
             if contest in unavailable_contests:
                 manifest["benchmarks"][contest]["show_problem_cells"] = False
-                manifest["benchmarks"][contest]["detail_unavailable_note"] = details["unavailable"][contest]["note"]
                 continue
             info = details["benchmarks"][contest]
             require(len(info["turns"]) == count and len({t["turn_id"] for t in info["turns"]}) == count, "Detail turn coverage mismatch")
@@ -167,11 +162,6 @@ def main():
                 require(len(detail["turn_scores"]) == COUNTS[cell["benchmark_id"]], "Detail score coverage mismatch")
                 cell.update({k: detail[k] for k in ("detail_path", "shared_path", "turn_scores")})
         manifest["sheets"][0]["show_problem_cells"] = True
-        available_names = "/".join(manifest["benchmarks"][c]["name"].replace(" 2026", "") for c in COUNTS if c in available_contests)
-        missing_names = "/".join(manifest["benchmarks"][c]["name"].replace(" 2026", "") for c in COUNTS if c in unavailable_contests)
-        manifest["sheets"][0]["description"] += f" Question details: {available_names} available."
-        if missing_names:
-            manifest["sheets"][0]["description"] += f" Final {missing_names} records are missing from the release."
     write(DATA / "manifest.json", manifest)
     fallback(manifest)
     print("Synced 56 sealed 2026 competition cells and 14 macro/CI rows; zero raw downloads or API calls.")

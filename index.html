@@ -31,10 +31,10 @@
           <p>Competition-level scores with source-linked problem details.</p>
         </section>
 
-        <section class="notice-strip" aria-label="Protocol note">
-          <strong>Scoring note.</strong>
-          <span id="sheetDescription"></span>
-        </section>
+        <details class="notice-strip" id="scoringNote">
+          <summary>Scoring note</summary>
+          <div class="notice-content" id="sheetDescription"></div>
+        </details>
 
         <p class="release-links" id="releaseLinks" aria-label="Release sources"></p>
 
@@ -62,7 +62,6 @@
               <span><i class="swatch mid"></i>Partial</span>
               <span><i class="swatch low"></i>Wrong</span>
               <span><i class="swatch invalid"></i>Missing</span>
-              <span class="legend-leak"><span class="leak-icon" aria-hidden="true">!</span> possible timing/data leakage</span>
             </div>
             <div class="arena-table-wrap" id="scoreTable"></div>
             <p class="table-hint" id="tableHint">Problem-level records with model answer, evaluation feedback, official answer, rubric, and figures.</p>

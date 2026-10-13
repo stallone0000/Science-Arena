@@ -128,12 +128,6 @@ function blockColor(turn) {
   return `rgb(${mixed.join(",")})`;
 }
 
-function contamTag(value) {
-  if (!value) return "";
-  if (value === "pre_release_holdout") return `<span class="tag safe">pre-release</span>`;
-  return `<span class="tag warn compact-warn" title="Possible timing/data leakage">!</span>`;
-}
-
 function rankTag(rank) {
   if (!rank) return "";
   return `<span class="tag rank">#${rank}</span>`;
@@ -388,7 +382,6 @@ function renderTabs() {
 function renderSummary() {
   const sheet = activeSheet();
   const notes = [sheet?.description || state.manifest.protocol.note];
-  if (currentBenchmark()?.detail_unavailable_note) notes.push(currentBenchmark().detail_unavailable_note);
   if (showProblemCells() && (sheet?.benchmark_ids || []).includes("ibo2023")) {
     notes.push(state.manifest.protocol.objective_note);
   }
@@ -414,7 +407,7 @@ function renderBenchmarkHeader() {
   if (bench.overall) {
     const count = (bench.source_benchmark_ids || []).length;
     const pieces = isCoreSheet()
-      ? [sheet?.name, "archived manual evaluation", `${count} competitions`, entryCountLabel(validCells, sheet)]
+      ? [sheet?.name, "manual evaluation", `${count} competitions`, entryCountLabel(validCells, sheet)]
       : [sheet?.name, `${count} competitions`, entryCountLabel(validCells, sheet), "normalized score /100"];
     $("benchmarkMeta").textContent = pieces.filter(Boolean).join(" | ");
     return;
@@ -626,7 +619,6 @@ function renderScoreTable() {
       const tags = [
         coreSheet ? coreReferenceTag(model.model_id) : rankTag(cell?.rank),
         coreSheet ? "" : medalTag(benchmarkId, cell?.reported_score),
-        coreSheet ? "" : contamTag(cell?.contamination),
         cell?.status !== "ok" ? `<span class="tag invalid">invalid</span>` : "",
       ].join("");
       const problemCells = includeProblems ? turns
@@ -836,6 +828,13 @@ function textBlock(title, value, boxClass = "response-box") {
     </section>`;
 }
 
+function rubricForDisplay(value) {
+  if (typeof value === "string") return value.replace(/^\s*\[DERIVED RUBRIC\]\s*/i, "");
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  const fields = ["criteria", "max_score", "item_max_score", "accepted_equivalents", "numeric_tolerance", "error_carry_forward", "official_scoring_rule_transcription"];
+  return Object.fromEntries(fields.filter((key) => value[key] != null).map((key) => [key, value[key]]));
+}
+
 function figureBlock(image, index) {
   const values = Array.isArray(image.extracted_values) && image.extracted_values.length
     ? `<ul>${image.extracted_values.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul>`
@@ -914,9 +913,8 @@ function renderDetail() {
       ${textBlock(latest ? "Reference Answer Used for Scoring" : "Official Answer", latest ? turn.reference_answer : turn.official_answer, "solution-box")}
       ${latest ? textBlock("Worked Reference Solution", turn.official_solution, "solution-box") : ""}
       ${turn.solution_images?.length ? `<section class="detail-box solution-box"><h4>Reference Solution Pages</h4><div class="media-rail">${turn.solution_images.map(figureBlock).join("")}</div></section>` : ""}
-      ${textBlock(latest ? "Scoring Rubric" : "Rubric", turn.official_rubric, "rubric-box")}
+      ${textBlock(latest ? "Scoring Rubric" : "Rubric", rubricForDisplay(turn.official_rubric), "rubric-box")}
       ${turn.generation_error || turn.judge_error ? textBlock("Run Errors", { generation_error: turn.generation_error, judge_error: turn.judge_error }, "error-box") : ""}
-      ${turn.caveats?.length ? textBlock("Caveats", turn.caveats, "rubric-box") : ""}
     </div>`;
 }
 

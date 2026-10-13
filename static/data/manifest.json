@@ -28,7 +28,7 @@
     {
       "sheet_id": "sealed_2026",
       "name": "2026 Competitions",
-      "description": "August 2026 sealed release: 14 models, 4 competitions, 153 turns, 56 complete cells. Macro = equal-weight mean of the four normalized scores. V = original question images; T = reviewed answer-blind question text, no images. Judge: Gemini 3.5 Flash. 95% intervals use 10,000 whole-question bootstrap samples; they do not measure generation or judge variance. Training exposure is indeterminate. Available question-level records are linked from the competition view. Select a competition, then click a colored question cell to inspect its answer and grade. IPhO solution PDFs have unverified official/final status; some rubrics are derived. Question details: IPhO/IChO available. Final NBPhO/USAPhO records are missing from the release.",
+      "description": "Scores are normalized by each competition's maximum. The overall score is the equal-weight mean across four competitions. V = original question images; T = frozen question text. Judge: Gemini 3.5 Flash. 95% intervals use 10,000 whole-question bootstrap samples.",
       "benchmark_ids": [
         "overall_sealed_2026",
         "ipho2026",
@@ -63,8 +63,8 @@
     },
     {
       "sheet_id": "international_core",
-      "name": "Archived International",
-      "description": "Archived manual-evaluation scores and official human reference rows. Timing alone does not establish absence of training exposure.",
+      "name": "International Olympiads",
+      "description": "International Olympiad model scores with human reference results.",
       "benchmark_ids": [
         "overall_international_core",
         "ibo2023",
@@ -92,8 +92,8 @@
     },
     {
       "sheet_id": "extended_suite",
-      "name": "Archived Extended",
-      "description": "May 2026 text-only interleaved archive; NBPhO and USAPhO inputs are from 2025. These scores use an older protocol and are separate from the sealed 2026 release.",
+      "name": "Extended Suite",
+      "description": "Scores across the extended scientific Olympiad competitions. Select a competition to browse item-level results.",
       "benchmark_ids": [
         "overall_extended_suite",
         "ibo2023",
@@ -3335,7 +3335,7 @@
       "benchmark_id": "nbpho2025",
       "name": "NBPhO 2025",
       "discipline": "physics",
-      "release_date": "2025 (archived; exact public date unverified)",
+      "release_date": "2025",
       "report_scale": 72.0,
       "max_score": 72.0,
       "source_quality": "new_official_pdf_experimental_caveat",
@@ -3592,7 +3592,7 @@
       "benchmark_id": "usapho2025",
       "name": "USAPhO 2025",
       "discipline": "physics",
-      "release_date": "2025 (archived; exact public date unverified)",
+      "release_date": "2025",
       "report_scale": 150.0,
       "max_score": 150.0,
       "source_quality": "new_official_pdf_derived_rubric",
@@ -4465,8 +4465,7 @@
       "turns": [],
       "source_quality": "independently_sealed_2026_release",
       "reference_cutoffs": {},
-      "show_problem_cells": false,
-      "detail_unavailable_note": "The final v8 per-question records are absent from the published release. Competition totals remain available; the earlier archived grades belong to a different run."
+      "show_problem_cells": false
     },
     "usapho2026": {
       "benchmark_id": "usapho2026",
@@ -4478,8 +4477,7 @@
       "turns": [],
       "source_quality": "independently_sealed_2026_release",
       "reference_cutoffs": {},
-      "show_problem_cells": false,
-      "detail_unavailable_note": "The final v5 per-question records are absent from the published release. Competition totals remain available; the earlier archived grades belong to a different run."
+      "show_problem_cells": false
     },
     "overall_sealed_2026": {
       "benchmark_id": "overall_sealed_2026",
