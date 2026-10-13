@@ -7,6 +7,10 @@ on:
         description: Inspect sealed source coverage without publishing data
         type: boolean
         default: true
+      allow_missing_runs:
+        description: Document absent final runs and publish only fully verified available runs
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -31,7 +35,11 @@ jobs:
       - name: Build verified public details
         if: '!inputs.inspect'
         run: |
-          python scripts/build_2026_details.py
+          if [ '${{ inputs.allow_missing_runs }}' = 'true' ]; then
+            python scripts/build_2026_details.py --allow-missing-runs
+          else
+            python scripts/build_2026_details.py
+          fi
           python scripts/sync_2026.py
       - name: Publish generated data
         if: '!inputs.inspect'

@@ -6,6 +6,9 @@ const state = {
   selectedModel: null,
   modelSearch: "",
   detailCache: new Map(),
+  detailPromises: new Map(),
+  sharedCache: new Map(),
+  detailErrors: new Map(),
   benchmarkDetails: new Map(),
   detailRequestId: 0,
 };
@@ -253,6 +256,7 @@ function showUsageColumns() {
 
 function showProblemCells() {
   if (currentBenchmark()?.overall) return false;
+  if (currentBenchmark()?.show_problem_cells != null) return currentBenchmark().show_problem_cells;
   const sheet = activeSheet();
   return sheet?.show_problem_cells !== false;
 }
@@ -384,6 +388,7 @@ function renderTabs() {
 function renderSummary() {
   const sheet = activeSheet();
   const notes = [sheet?.description || state.manifest.protocol.note];
+  if (currentBenchmark()?.detail_unavailable_note) notes.push(currentBenchmark().detail_unavailable_note);
   if (showProblemCells() && (sheet?.benchmark_ids || []).includes("ibo2023")) {
     notes.push(state.manifest.protocol.objective_note);
   }
@@ -664,6 +669,7 @@ function renderScoreTable() {
       state.selectedTurn = button.dataset.turn;
       renderScoreTable();
       renderDetail();
+      if (activeSheet()?.sheet_id === "sealed_2026") loadSelectedDetail();
       focusDetailPanel();
     });
   });
@@ -677,12 +683,69 @@ async function loadDetail(cell) {
   if (!cell?.detail_path) return null;
   const key = detailKey(cell.benchmark_id, cell.model);
   if (state.detailCache.has(key)) return state.detailCache.get(key);
-  const url = detailUrl(cell.detail_path);
+  if (state.detailPromises.has(key)) return state.detailPromises.get(key);
+  const promise = (async () => {
+    const data = await fetchDetail(cell.detail_path);
+    if (cell.shared_path) {
+      if (!state.sharedCache.has(cell.shared_path)) {
+        const sharedPromise = fetchDetail(cell.shared_path).catch((error) => {
+          state.sharedCache.delete(cell.shared_path);
+          throw error;
+        });
+        state.sharedCache.set(cell.shared_path, sharedPromise);
+      }
+      const shared = await state.sharedCache.get(cell.shared_path);
+      if (data.model?.model_id !== cell.model) throw new Error("Detail model does not match the selected row.");
+      const questions = new Map(shared.turns.map((turn) => [turn.turn_id, turn]));
+      data.turns = data.turns.map((turn) => {
+        const question = questions.get(turn.turn_id);
+        if (!question) throw new Error("A frozen question is missing from this detail record.");
+        return {
+          ...question,
+          ...turn,
+          question: cell.input_mode === "text_staticized" ? question.question_staticized : question.question,
+          input_mode: cell.input_mode,
+        };
+      });
+    }
+    state.detailCache.set(key, data);
+    return data;
+  })();
+  state.detailPromises.set(key, promise);
+  try {
+    return await promise;
+  } finally {
+    state.detailPromises.delete(key);
+  }
+}
+
+async function fetchDetail(path) {
+  const url = detailUrl(path);
   const response = await fetch(url);
-  if (!response.ok) throw new Error(`Failed to load ${url}`);
-  const data = await response.json();
-  state.detailCache.set(key, data);
-  return data;
+  if (!response.ok) throw new Error(`Failed to load detail (HTTP ${response.status}). Please retry.`);
+  return response.json();
+}
+
+async function loadSelectedDetail() {
+  const benchmarkId = state.selectedBenchmark;
+  const modelId = state.selectedModel;
+  const turnId = state.selectedTurn;
+  if (!modelId || !turnId) return;
+  const key = detailKey(benchmarkId, modelId);
+  state.detailErrors.delete(key);
+  try {
+    const cell = cellsByKey().get(cellMapKey(benchmarkId, modelId));
+    const detail = await loadDetail(cell);
+    if (benchmarkId !== state.selectedBenchmark || modelId !== state.selectedModel || turnId !== state.selectedTurn) return;
+    if (!detail) throw new Error("Detail record is unavailable.");
+    state.benchmarkDetails.get(benchmarkId)?.set(modelId, detail);
+    renderScoreTable();
+    renderDetail();
+  } catch (error) {
+    if (benchmarkId !== state.selectedBenchmark || modelId !== state.selectedModel || turnId !== state.selectedTurn) return;
+    state.detailErrors.set(key, error.message);
+    renderDetail();
+  }
 }
 
 async function loadBenchmarkDetails() {
@@ -703,6 +766,26 @@ async function loadBenchmarkDetails() {
   if (!models.length) {
     state.benchmarkDetails.set(benchmarkId, new Map());
     renderScoreTable();
+    return;
+  }
+  if (activeSheet()?.sheet_id === "sealed_2026") {
+    const bench = currentBenchmark();
+    const previews = new Map(models.map((model) => {
+      const key = detailKey(benchmarkId, model.model_id);
+      const cached = state.detailCache.get(key);
+      if (cached) return [model.model_id, cached];
+      const cell = cellMap.get(cellMapKey(benchmarkId, model.model_id));
+      const turns = (bench.turns || []).map((ref, index) => {
+        const score = cell.turn_scores?.[index];
+        const ratio = score == null ? null : score / ref.max_score;
+        return { ...ref, score, ratio, verdict: ratio == null ? "missing" : ratio >= 1 - 1e-9 ? "correct" : ratio <= 1e-9 ? "wrong" : "partial" };
+      });
+      return [model.model_id, { benchmark: bench, model, turns, preview: true }];
+    }));
+    state.benchmarkDetails.set(benchmarkId, previews);
+    renderScoreTable();
+    renderDetail();
+    if (state.selectedModel && state.selectedTurn) loadSelectedDetail();
     return;
   }
   try {
@@ -781,6 +864,18 @@ function renderDetail() {
   const details = state.benchmarkDetails.get(state.selectedBenchmark);
   const detail = details?.get(state.selectedModel);
   const turn = detail?.turns?.find((row) => row.turn_id === state.selectedTurn);
+  if (detail?.preview) {
+    const error = state.detailErrors.get(detailKey(state.selectedBenchmark, state.selectedModel));
+    $("detailPanel").innerHTML = error
+      ? `<div class="error">${escapeHtml(error)} <button id="retryDetail" type="button">Retry</button></div>`
+      : `<div class="loading">Loading model answer and scoring feedback…</div>`;
+    $("retryDetail")?.addEventListener("click", () => {
+      state.detailErrors.delete(detailKey(state.selectedBenchmark, state.selectedModel));
+      renderDetail();
+      loadSelectedDetail();
+    });
+    return;
+  }
   if (!detail || !turn) {
     $("detailPanel").innerHTML = `<div class="error">Detail not available.</div>`;
     return;
@@ -789,6 +884,7 @@ function renderDetail() {
   const bench = { ...detail.benchmark, ...state.manifest.benchmarks[state.selectedBenchmark] };
   const statusTag = `<span class="tag ${turn.verdict === "correct" ? "safe" : turn.verdict === "wrong" ? "warn" : ""}">${escapeHtml(turn.verdict)}</span>`;
   const evaluator = evaluatorLabel(turn, state.selectedBenchmark);
+  const latest = activeSheet()?.sheet_id === "sealed_2026";
   $("detailPanel").innerHTML = `
     <div class="detail-content">
       <div class="detail-kicker">
@@ -798,11 +894,14 @@ function renderDetail() {
       </div>
       <h3>${escapeHtml(turn.label)}</h3>
       <p class="detail-muted">${escapeHtml(turn.turn_id)} | score ${fmtNumber(turn.score)}/${fmtNumber(turn.max_score)} | evaluator: ${escapeHtml(evaluator)}</p>
+      ${turn.competition_score != null ? `<p class="detail-muted">Raw item grading points above; contribution to the competition total: ${fmtNumber(turn.competition_score, 4)}/${fmtNumber(turn.competition_max_score, 4)}.</p>` : ""}
       ${questionBlock(turn)}
       ${textBlock("Model Answer", turn.candidate_answer, "response-box")}
       ${textBlock("Evaluation Feedback", turn.judge_result, "judgment-box")}
-      ${textBlock("Official Answer", turn.official_answer, "solution-box")}
-      ${textBlock("Rubric", turn.official_rubric, "rubric-box")}
+      ${textBlock(latest ? "Reference Answer Used for Scoring" : "Official Answer", latest ? turn.reference_answer : turn.official_answer, "solution-box")}
+      ${latest ? textBlock("Worked Reference Solution", turn.official_solution, "solution-box") : ""}
+      ${turn.solution_images?.length ? `<section class="detail-box solution-box"><h4>Reference Solution Pages</h4><div class="media-rail">${turn.solution_images.map(figureBlock).join("")}</div></section>` : ""}
+      ${textBlock(latest ? "Scoring Rubric" : "Rubric", turn.official_rubric, "rubric-box")}
       ${turn.generation_error || turn.judge_error ? textBlock("Run Errors", { generation_error: turn.generation_error, judge_error: turn.judge_error }, "error-box") : ""}
       ${turn.caveats?.length ? textBlock("Caveats", turn.caveats, "rubric-box") : ""}
     </div>`;

@@ -23,6 +23,7 @@ NOTE = (
     "95% intervals use 10,000 whole-question bootstrap samples; they do not measure "
     "generation or judge variance. Training exposure is indeterminate. "
     "Full question images, visible answers and judge records are available in the release assets. "
+    "Select a competition, then click a colored question cell to inspect its answer and grade. "
     "IPhO solution PDFs have unverified official/final status; some rubrics are derived."
 )
 
@@ -142,6 +143,30 @@ def main():
     manifest["default_benchmark"] = OVERALL
     manifest["benchmark_order"] = [b for s in manifest["sheets"] for b in s["benchmark_ids"]]
     manifest["release_2026"] = {"source_commit": SOURCE_COMMIT, "source_sha256": hashes, "sealed_at": "2026-08-29", "release_tag": "cr-final-2026-08-31", "links": [{"label": "Code & reproducibility", "url": REPO}, {"label": "Score source", "url": f"{REPO}/blob/{SOURCE_COMMIT}/results/2026/table6/table6_scores.md"}, {"label": "Raw records & images", "url": f"{REPO}/releases/tag/cr-final-2026-08-31"}]}
+    detail_index_path = DATA / "2026/index.json"
+    if detail_index_path.is_file():
+        details = load(detail_index_path)
+        require(details["source_commit"] == SOURCE_COMMIT and details["score_source_sha256"] == hashes["table6_scores.json"], "Details are bound to a different score release")
+        detail_cells = {(c["benchmark_id"], c["model"]): c for c in details["cells"]}
+        available_contests = set(details["benchmarks"])
+        unavailable_contests = set(details.get("unavailable", {}))
+        require(available_contests.isdisjoint(unavailable_contests) and available_contests | unavailable_contests == set(COUNTS), "Incomplete detail availability metadata")
+        require(len(detail_cells) == 14 * len(available_contests), "Expected a complete 14-route detail roster for each available competition")
+        for contest, count in COUNTS.items():
+            if contest in unavailable_contests:
+                manifest["benchmarks"][contest]["show_problem_cells"] = False
+                manifest["benchmarks"][contest]["detail_unavailable_note"] = details["unavailable"][contest]["note"]
+                continue
+            info = details["benchmarks"][contest]
+            require(len(info["turns"]) == count and len({t["turn_id"] for t in info["turns"]}) == count, "Detail turn coverage mismatch")
+            manifest["benchmarks"][contest]["turns"] = info["turns"]
+            manifest["benchmarks"][contest]["show_problem_cells"] = True
+        for cell in manifest["cells"]:
+            if cell["sheet_id"] == SHEET and cell["benchmark_id"] in available_contests:
+                detail = detail_cells[cell["benchmark_id"], cell["model"]]
+                require(len(detail["turn_scores"]) == COUNTS[cell["benchmark_id"]], "Detail score coverage mismatch")
+                cell.update({k: detail[k] for k in ("detail_path", "shared_path", "turn_scores")})
+        manifest["sheets"][0]["show_problem_cells"] = True
     write(DATA / "manifest.json", manifest)
     fallback(manifest)
     print("Synced 56 sealed 2026 competition cells and 14 macro/CI rows; zero raw downloads or API calls.")
