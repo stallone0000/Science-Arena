@@ -140,6 +140,18 @@ function isCoreSheet() {
   return activeSheet()?.sheet_id === "international_core";
 }
 
+function modelSubtitle(model, cell) {
+  if (activeSheet()?.sheet_id === "sealed_2026") {
+    const mode = cell?.input_mode === "vision" ? "V · native images" : "T · frozen text";
+    return `${escapeHtml(mode)} · ${escapeHtml(model.model_id)}`;
+  }
+  return `${escapeHtml(model.provider || "")}${model.release_date ? ` | ${escapeHtml(model.release_date)}` : ""}`;
+}
+
+function intervalLabel(cell) {
+  return cell?.ci95 ? `95% [${fmtNumber(cell.ci95[0])}, ${fmtNumber(cell.ci95[1])}]` : "";
+}
+
 function isCoreOverall() {
   return Boolean(currentBenchmark()?.overall) && isCoreSheet();
 }
@@ -287,7 +299,7 @@ function leaderboardModels() {
   const cellMap = cellsByKey();
   const models = filteredModels().slice();
   const sheetModelIds = activeSheet()?.model_ids;
-  if (Array.isArray(sheetModelIds) && sheetModelIds.length) {
+  if (isCoreSheet() && Array.isArray(sheetModelIds) && sheetModelIds.length) {
     const order = new Map(sheetModelIds.map((modelId, index) => [modelId, index]));
     return models.sort((a, b) => {
       const aOrder = order.has(a.model_id) ? order.get(a.model_id) : Number.MAX_SAFE_INTEGER;
@@ -323,6 +335,7 @@ function renderLayoutMode() {
   const coreOverall = isCoreOverall();
   $("workbench")?.classList.toggle("summary-mode", !includeProblems && (!overall || coreOverall));
   $("workbench")?.classList.toggle("overall-mode", overall && !coreOverall);
+  $("workbench")?.classList.toggle("sealed-2026", activeSheet()?.sheet_id === "sealed_2026");
   if ($("cellLegend")) $("cellLegend").hidden = !includeProblems;
   if ($("tableHint")) $("tableHint").hidden = !includeProblems;
   if ($("detailPanel")) $("detailPanel").hidden = !includeProblems;
@@ -377,6 +390,9 @@ function renderSummary() {
   const description = notes.filter(Boolean).join("\n");
   $("sheetDescription").textContent = description;
   $("sheetDescription").title = description;
+  $("releaseLinks").innerHTML = (state.manifest.release_2026?.links || [])
+    .map((link) => `<a href="${escapeHtml(link.url)}" target="_blank" rel="noopener">${escapeHtml(link.label)}</a>`)
+    .join(" · ");
 }
 
 function renderBenchmarkHeader() {
@@ -393,7 +409,7 @@ function renderBenchmarkHeader() {
   if (bench.overall) {
     const count = (bench.source_benchmark_ids || []).length;
     const pieces = isCoreSheet()
-      ? [sheet?.name, "uncontaminated manual evaluation", `${count} competitions`, entryCountLabel(validCells, sheet)]
+      ? [sheet?.name, "archived manual evaluation", `${count} competitions`, entryCountLabel(validCells, sheet)]
       : [sheet?.name, `${count} competitions`, entryCountLabel(validCells, sheet), "normalized score /100"];
     $("benchmarkMeta").textContent = pieces.filter(Boolean).join(" | ");
     return;
@@ -402,7 +418,7 @@ function renderBenchmarkHeader() {
     sheet?.name,
     bench.discipline,
     bench.release_date,
-    showProblemCells() ? `${bench.turn_count} problems` : "",
+    bench.turn_count ? `${bench.turn_count} turns` : "",
     entryCountLabel(validCells, sheet),
     `scale ${fmtNumber(bench.report_scale)}`,
   ].filter(Boolean);
@@ -459,7 +475,7 @@ function renderCoreOverallTable(models, cellMap, benchmarkIds) {
               <div class="model-name">${escapeHtml(model.display)}</div>
               <div class="score-tags">${tags || ""}</div>
             </div>
-            <div class="model-sub">${escapeHtml(model.provider || "")}${model.release_date ? ` | ${escapeHtml(model.release_date)}` : ""}</div>
+            <div class="model-sub">${modelSubtitle(model, cellMap.get(cellMapKey(state.selectedBenchmark, model.model_id)))}</div>
           </td>
           ${scoreCells}
         </tr>`;
@@ -524,15 +540,15 @@ function renderOverallTable() {
               <div class="model-name">${escapeHtml(model.display)}</div>
               <div class="score-tags">${tags || ""}</div>
             </div>
-            <div class="model-sub">${escapeHtml(model.provider || "")}${model.release_date ? ` | ${escapeHtml(model.release_date)}` : ""}</div>
+            <div class="model-sub">${modelSubtitle(model, cellMap.get(cellMapKey(state.selectedBenchmark, model.model_id)))}</div>
           </td>
           <td class="rank-value">${escapeHtml(rankLabel(overallCell?.rank))}</td>
-          <td>${metricCell("accuracy", Number(overallCell?.pct || 0), fmtNumber(score, 1), "", "Mean normalized score across competitions in this sheet")}</td>
+          <td>${metricCell("accuracy", Number(overallCell?.pct || 0), fmtNumber(score, 2), intervalLabel(overallCell), "Mean normalized score across competitions in this sheet; interval covers question sampling only")}</td>
           ${componentCells}
         </tr>`;
     })
     .join("");
-  $("scoreTable").innerHTML = `<table class="arena-table overall-table" style="width:${tableWidth}px">${colgroup}${head}<tbody>${body}</tbody></table>`;
+  $("scoreTable").innerHTML = `<table class="arena-table overall-table" style="width:${tableWidth}px;${activeSheet()?.sheet_id === "sealed_2026" ? "min-width:100%" : ""}">${colgroup}${head}<tbody>${body}</tbody></table>`;
 }
 
 function renderScoreTable() {
@@ -622,7 +638,7 @@ function renderScoreTable() {
               <div class="model-name">${escapeHtml(model.display)}</div>
               <div class="score-tags">${tags || ""}</div>
             </div>
-            <div class="model-sub">${escapeHtml(model.provider || "")}${model.release_date ? ` | ${escapeHtml(model.release_date)}` : ""}</div>
+            <div class="model-sub">${modelSubtitle(model, cellMap.get(cellMapKey(state.selectedBenchmark, model.model_id)))}</div>
           </td>
           <td>${coreSheet
             ? coreScoreMetricCell(cell)
@@ -770,7 +786,7 @@ function renderDetail() {
     return;
   }
   const model = detail.model || {};
-  const bench = detail.benchmark || {};
+  const bench = { ...detail.benchmark, ...state.manifest.benchmarks[state.selectedBenchmark] };
   const statusTag = `<span class="tag ${turn.verdict === "correct" ? "safe" : turn.verdict === "wrong" ? "warn" : ""}">${escapeHtml(turn.verdict)}</span>`;
   const evaluator = evaluatorLabel(turn, state.selectedBenchmark);
   $("detailPanel").innerHTML = `
@@ -805,6 +821,8 @@ function render() {
 async function init() {
   const response = await fetch("/static/data/manifest.json");
   state.manifest = await response.json();
+  state.selectedSheet = state.manifest.default_sheet || state.selectedSheet;
+  state.selectedBenchmark = state.manifest.default_benchmark || state.selectedBenchmark;
   state.selectedSheet = activeSheet()?.sheet_id || "";
   ensureSelectedBenchmark();
   $("modelSearch").addEventListener("input", (event) => {

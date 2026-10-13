@@ -234,6 +234,17 @@ button:disabled {
   justify-content: center;
 }
 
+.release-links {
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 auto 14px;
+}
+
+.release-links a {
+  color: var(--indigo);
+}
+
 .nav-stack {
   display: flex;
   flex-direction: column;
@@ -325,6 +336,11 @@ button:disabled {
 
 .benchmark-workbench.overall-mode {
   grid-template-columns: minmax(0, 1fr);
+}
+
+.benchmark-workbench.sealed-2026.overall-mode {
+  grid-template-columns: minmax(0, 1120px);
+  justify-content: center;
 }
 
 .leaderboard-card,

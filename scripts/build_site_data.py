@@ -41,10 +41,7 @@ ENGLISH_ONLY_NOTICE = (
     "[English-only dashboard note: The original field contains non-English source text "
     "and is omitted from this public view. Scores and evaluation feedback remain available.]"
 )
-PUBLIC_TEXT_REPLACEMENTS = {
-    "NBPhO 2025": "NBPhO 2026",
-    "USAPhO 2025": "USAPhO 2026",
-}
+PUBLIC_TEXT_REPLACEMENTS = {}
 
 BENCHMARK_NAMES = {
     "ipho2025": "IPhO 2025",
@@ -56,8 +53,8 @@ BENCHMARK_NAMES = {
     "cpho2025": "CPhO 2025",
     "ccho2025": "CChO 2025",
     "incho2026": "INChO 2026",
-    "nbpho2025": "NBPhO 2026",
-    "usapho2025": "USAPhO 2026",
+    "nbpho2025": "NBPhO 2025",
+    "usapho2025": "USAPhO 2025",
 }
 
 BENCHMARK_ORDER = [
